@@ -1,0 +1,183 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+  <xacro:include filename="../properties/core.xacro" />
+  <xacro:include filename="../macros/inertial.xacro" />
+
+  <!-- =========================== Robot core description =========================== -->
+  <!-- ================== Base ================== -->
+  <!-- ========= Link ========= -->
+  <link name="base_link" />
+
+
+  <!-- ================== Base footprint ================== -->
+  <!-- ========= Link ========= -->
+  <link name="base_footprint" />
+
+  <!-- ========= Joint ========= -->
+  <joint name="base_footprint_joint" type="fixed">
+    <parent link="base_link" />
+    <child link="base_footprint" />
+  </joint>
+
+
+  <!-- ================== Chassis ================== -->
+  <!-- ========= Link ========= -->
+  <link name="chassis">
+    <visual>
+      <origin xyz="${chassis_to_origin_offset_x} ${chassis_to_origin_offset_y} ${chassis_to_origin_offset_z}" />
+      <geometry>
+        <box size="${chassis_size_x} ${chassis_size_y} ${chassis_size_z}" />
+      </geometry>
+      <material name="${chassis_material}" />
+    </visual>
+
+    <collision>
+      <origin xyz="${chassis_to_origin_offset_x} ${chassis_to_origin_offset_y} ${chassis_to_origin_offset_z}" />
+      <geometry>
+        <box size="${chassis_size_x} ${chassis_size_y} ${chassis_size_z}" />
+      </geometry>
+    </collision>
+
+    <xacro:inertial_box
+      mass="${chassis_mass}"
+      x="${chassis_size_x}" y="${chassis_size_y}" z="${chassis_size_z}"
+    >
+      <xacro:inertial_origin xyz="${chassis_to_origin_offset_x} ${chassis_to_origin_offset_y} ${chassis_to_origin_offset_z}" />
+    </xacro:inertial_box>
+  </link>
+
+  <!-- ========= Joint ========= -->
+  <joint name="chassis_joint" type="fixed">
+    <parent link="base_link" />
+    <child link="chassis" />
+    <origin xyz="${base_to_chassis_joint_x} ${base_to_chassis_joint_y} ${base_to_chassis_joint_z}" />
+  </joint>
+
+  <!-- ========= Gazebo ========= -->
+  <gazebo reference="chassis">
+    <material>${chassis_gazebo_material}</material>
+  </gazebo>
+
+
+  <!-- ================== Left wheel ================== -->
+  <!-- ========= Link ========= -->
+  <link name="left_wheel">
+    <visual>
+      <geometry>
+        <cylinder radius="${left_wheel_size_xy}" length="${left_wheel_size_z}" />
+      </geometry>
+      <material name="${left_wheel_material}" />
+    </visual>
+
+    <collision>
+      <geometry>
+        <cylinder radius="${left_wheel_size_xy}" length="${left_wheel_size_z}" />
+      </geometry>
+    </collision>
+
+    <xacro:inertial_cylinder
+      mass="${left_wheel_mass}"
+      radius="${left_wheel_size_xy}" length="${left_wheel_size_z}"
+    >
+      <xacro:inertial_origin />
+    </xacro:inertial_cylinder>
+  </link>
+
+    <!-- ========= Joint ========= -->
+  <joint name="left_wheel_joint" type="continuous">
+    <parent link="base_link" />
+    <child link="left_wheel" />
+    <origin
+      xyz="${base_to_left_wheel_joint_x} ${base_to_left_wheel_joint_y} ${base_to_left_wheel_joint_z}"
+      rpy="${base_to_left_wheel_joint_roll} ${base_to_left_wheel_joint_pitch} ${base_to_left_wheel_joint_yaw}"
+    />
+    <axis xyz="${left_wheel_rotate_x} ${left_wheel_rotate_y} ${left_wheel_rotate_z}" />
+  </joint>
+
+  <!-- ========= Gazebo ========= -->
+  <gazebo reference="left_wheel">
+    <material>${left_wheel_gazebo_material}</material>
+  </gazebo>
+
+
+  <!-- ================== Right wheel ================== -->
+  <!-- ========= Link ========= -->
+  <link name="right_wheel">
+    <visual>
+      <geometry>
+        <cylinder radius="${right_wheel_size_xy}" length="${right_wheel_size_z}" />
+      </geometry>
+      <material name="${right_wheel_material}" />
+    </visual>
+
+    <collision>
+      <geometry>
+        <cylinder radius="${right_wheel_size_xy}" length="${right_wheel_size_z}" />
+      </geometry>
+    </collision>
+
+    <xacro:inertial_cylinder
+      mass="${right_wheel_mass}"
+      radius="${right_wheel_size_xy}" length="${right_wheel_size_z}"
+    >
+      <xacro:inertial_origin />
+    </xacro:inertial_cylinder>
+  </link>
+
+  <!-- ========= Joint ========= -->
+  <joint name="right_wheel_joint" type="continuous">
+    <parent link="base_link" />
+    <child link="right_wheel" />
+    <origin
+      xyz="${base_to_right_wheel_joint_x} ${base_to_right_wheel_joint_y} ${base_to_right_wheel_joint_z}"
+      rpy="${base_to_right_wheel_joint_roll} ${base_to_right_wheel_joint_pitch} ${base_to_right_wheel_joint_yaw}"
+    />
+    <axis xyz="${right_wheel_rotate_x} ${right_wheel_rotate_y} ${right_wheel_rotate_z}" />
+  </joint>
+
+  <!-- ========= Gazebo ========= -->
+  <gazebo reference="right_wheel">
+    <material>${right_wheel_gazebo_material}</material>
+  </gazebo>
+
+
+  <!-- ================== Caster wheel ================== -->
+  <!-- ========= Link ========= -->
+  <link name="caster_wheel">
+    <visual>
+      <geometry>
+        <sphere radius="${caster_wheel_size_xyz}" />
+      </geometry>
+      <material name="${caster_wheel_material}" />
+    </visual>
+
+    <collision>
+      <geometry>
+        <sphere radius="${caster_wheel_size_xyz}" />
+      </geometry>
+    </collision>
+
+    <xacro:inertial_sphere
+      mass="${caster_wheel_mass}"
+      radius="${caster_wheel_size_xyz}"
+    >
+      <xacro:inertial_origin />
+    </xacro:inertial_sphere>\
+  </link>
+
+  <!-- ========= Joint ========= -->
+  <joint name="caster_wheel_joint" type="fixed">
+    <parent link="chassis" />
+    <child link="caster_wheel" />
+    <origin xyz="${base_to_caster_wheel_joint_x} ${base_to_caster_wheel_joint_y} ${base_to_caster_wheel_joint_z}" />
+  </joint>
+
+  <!-- ========= Gazebo ========= -->
+  <gazebo reference="caster_wheel">
+    <material>${caster_wheel_gazebo_material}</material>
+    <mu1 value="0.001" />
+    <mu2 value="0.001" />
+  </gazebo>
+
+</robot>

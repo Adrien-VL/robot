@@ -1,0 +1,75 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+  <xacro:include filename="../properties/lidar.xacro" />
+  <xacro:include filename="../properties/gazebo.xacro" />
+  <xacro:include filename="../macros/inertial.xacro" />
+
+  <!-- =========================== Lidar description =========================== -->
+  <!-- ================== Laser ================== -->
+  <!-- ========= Link ========= -->
+  <link name="laser_frame">
+    <visual>
+      <geometry>
+        <cylinder radius="${laser_frame_size_xy}" length="${laser_frame_size_z}" />
+      </geometry>
+      <material name="${laser_frame_material}" />
+    </visual>
+
+    <collision>
+      <geometry>
+        <cylinder radius="${laser_frame_size_xy}" length="${laser_frame_size_z}" />
+      </geometry>
+    </collision>
+
+    <xacro:inertial_cylinder
+      mass="${laser_frame_mass}"
+      radius="${laser_frame_size_xy}" length="${laser_frame_size_z}"
+    >
+      <xacro:inertial_origin />
+    </xacro:inertial_cylinder>
+  </link>
+
+  <!-- ========= Joint ========= -->
+  <joint name="laser_joint" type="fixed">
+    <parent link="chassis" />
+    <child link="laser_frame" />
+    <origin xyz="${chassis_to_laser_frame_joint_x} ${chassis_to_laser_frame_joint_y} ${chassis_to_laser_frame_joint_z}" />
+  </joint>
+
+  <!-- ========= Gazebo ========= -->
+  <gazebo reference="laser_frame">
+    <sensor name="laser" type="ray">
+      <visualize>${laser_visualize}</visualize>
+      <update_rate>${laser_update_rate}</update_rate>
+
+      <ray>
+        <scan>
+          <horizontal>
+            <samples>${laser_samples}</samples>
+            <min_angle>${laser_min_angle}</min_angle>
+            <max_angle>${laser_max_angle}</max_angle>
+          </horizontal>
+        </scan>
+        <range>
+          <min>${laser_range_min}</min>
+          <max>${laser_range_max}</max>
+        </range>
+      </ray>
+
+      <plugin
+        name="laser_controller"
+        filename="libgazebo_ros_ray_sensor.${plugin_ext}"
+      >
+        <ros>
+          <remapping>~/out:=${laser_topic}</remapping>
+        </ros>
+        <output_type>sensor_msgs/${laser_output_type}</output_type>
+        <frame_name>laser_frame</frame_name>
+      </plugin>
+    </sensor>
+
+    <material>${laser_frame_gazebo_material}</material>
+  </gazebo>
+
+</robot>

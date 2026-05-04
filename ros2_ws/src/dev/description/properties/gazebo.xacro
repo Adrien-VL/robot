@@ -1,0 +1,24 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+  <xacro:include filename="core.xacro" />
+
+  <!-- =========================== Gazebo properties =========================== -->
+  <!-- ================== General ================== -->
+  <xacro:property name="plugin_ext" value="$(optenv LIB_EXT so)"/>
+  <xacro:property name="joint_state_rate" value="50" />
+
+  <!-- ================== Diff drive ================== -->
+  <!-- ========= Dimensions ========= -->
+  <xacro:property name="wheel_separation"
+    value="${2 * base_to_left_wheel_joint_y if base_to_left_wheel_joint_y >= 0 else 2 * -base_to_left_wheel_joint_y}"
+  />
+
+  <xacro:property name="wheel_diameter" value="${2 * left_wheel_size_xy}" />
+
+
+  <!-- ========= Limits ========= -->
+  <xacro:property name="max_wheel_torque" value="200" />
+  <xacro:property name="max_wheel_acceleration" value="10" />
+
+</robot>

@@ -1,0 +1,9 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="robot">
+
+  <xacro:include filename="robot/materials.xacro" />
+  <xacro:include filename="robot/core.xacro" />
+  <xacro:include filename="robot/lidar.xacro" />
+  <xacro:include filename="robot/gazebo.xacro"/>
+
+</robot>

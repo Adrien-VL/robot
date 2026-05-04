@@ -1,0 +1,1 @@
+`robot_state_publisher` and possibly other nodes need `use_sim_time` to be set to true when using gazebo telling these nodes to keep their clocks synchronized with gazebo.

@@ -1,0 +1,107 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+  <!-- =========================== Robot core properties =========================== -->
+  <!-- ================== Chassis ================== -->
+  <!-- ========= Dimensions ========= -->
+  <xacro:property name="chassis_size_x" value="0.3" />
+  <xacro:property name="chassis_size_y" value="0.3" />
+  <xacro:property name="chassis_size_z" value="0.15" />
+
+  <!-- ========= Origin ========= -->
+  <xacro:property name="chassis_to_origin_offset_x" value="${chassis_size_x / 2}" />
+  <xacro:property name="chassis_to_origin_offset_y" value="0" />
+  <xacro:property name="chassis_to_origin_offset_z" value="${chassis_size_z / 2}" />
+
+  <!-- ========= Joint offsets ========= -->
+  <xacro:property name="base_to_chassis_joint_x" value="-0.1" />
+  <xacro:property name="base_to_chassis_joint_y" value="0" />
+  <xacro:property name="base_to_chassis_joint_z" value="0" />
+
+  <!-- ========= Material ========= -->
+  <xacro:property name="chassis_material" value="white" />
+
+  <!-- ========= Inertial ========= -->
+  <xacro:property name="chassis_mass" value="0.5" />
+
+  <!-- ========= Gazebo ========= -->
+  <xacro:property name="chassis_gazebo_material" value="Gazebo/White" />
+
+
+  <!-- ================== Left wheel ================== -->
+  <!-- ========= Dimensions ========= -->
+  <xacro:property name="left_wheel_size_xy" value="0.05" />
+  <xacro:property name="left_wheel_size_z" value="0.04" />
+
+  <!-- ========= Joint offsets ========= -->
+  <xacro:property name="base_to_left_wheel_joint_x" value="0" />
+  <xacro:property name="base_to_left_wheel_joint_y" value="0.175" />
+  <xacro:property name="base_to_left_wheel_joint_z" value="0" />
+
+  <xacro:property name="base_to_left_wheel_joint_roll" value="${-pi / 2}" />
+  <xacro:property name="base_to_left_wheel_joint_pitch" value="0" />
+  <xacro:property name="base_to_left_wheel_joint_yaw" value="0" />
+
+  <!-- ========= Axis of rotation ========= -->
+  <xacro:property name="left_wheel_rotate_x" value="0" />
+  <xacro:property name="left_wheel_rotate_y" value="0" />
+  <xacro:property name="left_wheel_rotate_z" value="1" />
+
+  <!-- ========= Material ========= -->
+  <xacro:property name="left_wheel_material" value="blue" />
+
+  <!-- ========= Inertial ========= -->
+  <xacro:property name="left_wheel_mass" value="0.1" />
+
+  <!-- ========= Gazebo ========= -->
+  <xacro:property name="left_wheel_gazebo_material" value="Gazebo/Blue" />
+
+
+  <!-- ================== Right wheel ================== -->
+  <!-- ========= Dimensions ========= -->
+  <xacro:property name="right_wheel_size_xy" value="${left_wheel_size_xy}" />
+  <xacro:property name="right_wheel_size_z" value="${left_wheel_size_z}" />
+
+  <!-- ========= Joint offsets ========= -->
+  <xacro:property name="base_to_right_wheel_joint_x" value="${-base_to_left_wheel_joint_x}" />
+  <xacro:property name="base_to_right_wheel_joint_y" value="${-base_to_left_wheel_joint_y}" />
+  <xacro:property name="base_to_right_wheel_joint_z" value="${base_to_left_wheel_joint_z}" />
+
+  <xacro:property name="base_to_right_wheel_joint_roll" value="${-base_to_left_wheel_joint_roll}" />
+  <xacro:property name="base_to_right_wheel_joint_pitch" value="${base_to_left_wheel_joint_pitch}" />
+  <xacro:property name="base_to_right_wheel_joint_yaw" value="${-base_to_left_wheel_joint_pitch}" />
+
+  <!-- ========= Axis of rotation ========= -->
+  <xacro:property name="right_wheel_rotate_x" value="${left_wheel_rotate_x}" />
+  <xacro:property name="right_wheel_rotate_y" value="${left_wheel_rotate_y}" />
+  <xacro:property name="right_wheel_rotate_z" value="-${left_wheel_rotate_z}" />
+
+  <!-- ========= Material ========= -->
+  <xacro:property name="right_wheel_material" value="${left_wheel_material}" />
+
+  <!-- ========= Inertial ========= -->
+  <xacro:property name="right_wheel_mass" value="${left_wheel_mass}" />
+
+  <!-- ========= Gazebo ========= -->
+  <xacro:property name="right_wheel_gazebo_material" value="${left_wheel_gazebo_material}" />
+
+
+  <!-- ================== Caster wheel ================== -->
+  <!-- ========= Dimensions ========= -->
+  <xacro:property name="caster_wheel_size_xyz" value="0.05" />
+
+  <!-- ========= Joint offsets ========= -->
+  <xacro:property name="base_to_caster_wheel_joint_x" value="0.24" />
+  <xacro:property name="base_to_caster_wheel_joint_y" value="0" />
+  <xacro:property name="base_to_caster_wheel_joint_z" value="0" />
+
+  <!-- ========= Material ========= -->
+  <xacro:property name="caster_wheel_material" value="black" />
+
+  <!-- ========= Inertial ========= -->
+  <xacro:property name="caster_wheel_mass" value="0.1" />
+
+  <!-- ========= Gazebo ========= -->
+  <xacro:property name="caster_wheel_gazebo_material" value="Gazebo/Black" />
+
+</robot>
