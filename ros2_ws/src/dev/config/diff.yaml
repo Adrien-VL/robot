@@ -1,0 +1,28 @@
+/**:
+  ros__parameters:
+    left_fwd_pin: 24
+    left_rev_pin: 25
+    left_pwm_pin: 23
+    right_fwd_pin: 22
+    right_rev_pin: 27
+    right_pwm_pin: 13
+    left_enc_pin: 17
+    right_enc_pin: 26
+
+    pwm_freq_hz: 200
+    pwm_range: 100
+    enc_debounce_us: 200
+
+    ticks_per_rev: 1050
+    wheel_radius_m: 0.070
+    wheel_base_m: 0.237
+
+    deadband: 0.18
+    max_speed_cmd: 0.25
+    cmd_timeout_s: 0.5
+    odom_rate_hz: 50.0
+
+    odom_frame_id: odom
+    base_frame_id: base_link
+    cmd_vel_topic: cmd_vel
+    odom_topic: odom

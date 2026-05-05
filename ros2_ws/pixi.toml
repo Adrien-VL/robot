@@ -4,7 +4,7 @@ description = "Development environment for RoboStack ROS packages"
 channels = ["https://prefix.dev/conda-forge"]
 # platforms = ["osx-arm64"]
 # platforms = ["linux-64", "osx-64", "osx-arm64", "linux-aarch64"]
-platforms = ["linux-64", "osx-64", "osx-arm64", "linux-aarch64"]
+platforms = ["linux-aarch64"]
 
 # This will automatically activate the ros workspace on activation
 # [target.win.activation]
@@ -23,6 +23,7 @@ build = "colcon build --symlink-install --cmake-args -DCMAKE_EXPORT_COMPILE_COMM
 
 # Dependencies used by all environments
 [dependencies]
+swig = "*"
 python = "*"
 # Build tools
 compilers = "*"
@@ -35,6 +36,8 @@ rosdep = "*"
 colcon-common-extensions = "*"
 
 [pypi-dependencies]
+pigpio = "*"
+pyserial = "*"
 
 [target.linux.dependencies]
 libgl-devel = "*"
@@ -43,13 +46,16 @@ libgl-devel = "*"
 # Each environment corresponds to a different ROS distribution
 # and can be activated using the `pixi run/shell -e <environment>` command.
 [environments]
-humble = { features = ["humble", "build"] }
-# kilted = { features = ["kilted", "build"] }
+# On your development PC/laptop (full desktop + sim tools)
+humble-host = { features = ["humble", "host", "build"] }
+# On the actual robot (minimal)
+humble-robot = { features = ["humble", "robot", "build"] }
 
 ### ROS Humble ###
 [feature.humble]
 channels = ["https://prefix.dev/robostack-humble"]
-[feature.humble.dependencies]
+
+[feature.host.dependencies]
 ros-humble-desktop = "*"
 ros-humble-launch = "*"
 ros-humble-slam-toolbox = "*"
@@ -66,16 +72,12 @@ ros-humble-rmw-cyclonedds-cpp = "*"
 ros-humble-xacro = "*"
 ros-humble-joint-state-publisher-gui = "*"
 
-### ROS Kilted (Recommended) ###
-# [feature.kilted]
-# channels = ["https://prefix.dev/robostack-kilted"]
-# [feature.kilted.dependencies]
-# ros-kilted-desktop = "*"
-# ros-kilted-slam-toolbox = "*"
-# ros-kilted-nav2-bringup = "*"
-# ros-kilted-ros-gz = "*"
-# ros-kilted-ros-gz-bridge = "*"
-# ros-kilted-ros-gz-sim = "*"
-# ros-kilted-ros2-control = "*"
-# ros-kilted-gz-ros2-control = "*"
-## ros-kilted-gazebo-ros = "*"
+[feature.robot.dependencies]
+ros-humble-ros-base = "*"
+ros-humble-launch = "*"
+ros-humble-slam-toolbox = "*"
+ros-humble-navigation2 = "*"
+ros-humble-nav2-bringup = "*"
+ros-humble-ros2-control = "*"
+ros-humble-xacro = "*"
+ros-humble-joint-state-publisher = "*"

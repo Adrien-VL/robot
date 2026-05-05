@@ -151,3 +151,25 @@ def make_nav2():
       "params_file": config("nav2.yaml"),
     }.items(),
   )
+
+def make_lidar_node():
+  return Node(
+    package="lidar",
+    executable="lidar",
+    name="lidar",
+    output="screen",
+    parameters=[ 
+      config("lidar.yaml")
+    ]
+  )
+
+def make_diff_node():
+  return Node(
+    package="diff",
+    executable="diff",
+    name="diff",
+    output="screen",
+    parameters=[
+      config("diff.yaml"),
+    ]
+  )

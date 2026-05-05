@@ -1,7 +1,30 @@
-# !/bin/bash
+#!/bin/bash
 # set -e
 
 PLATFORM="humble"
+ENV_TYPE="host"   # default = host (development machine)
+
+# Parse command line arguments
+while [[ "$#" -gt 0 ]]; do
+  case $1 in
+    --robot)
+      ENV_TYPE="robot"
+      ;;
+    --host)
+      ENV_TYPE="host"
+      ;;
+    *)
+      echo "Unknown option: $1"
+      echo "Usage: $0 [--host | --robot]"
+      exit 1
+      ;;
+  esac
+  shift
+done
+
+ENV_NAME="${PLATFORM}-${ENV_TYPE}"
+
+echo "=== Using environment: $ENV_NAME ($ENV_TYPE) ==="
 
 echo "=== Cleaning old build artifacts ==="
 rm -rf build install log
@@ -14,14 +37,19 @@ find src -name "*.pyo" -delete 2>/dev/null || true
 echo "=== Enabling post-link scripts (if needed) ==="
 pixi config set --local run-post-link-scripts insecure
 
-echo "=== Installing/updating $PLATFORM environment ==="
-pixi install -e $PLATFORM
+echo "=== Installing/updating $ENV_NAME environment ==="
+pixi install -e $ENV_NAME
 
 echo "=== Building ROS 2 workspace ==="
-pixi run -e $PLATFORM build
+pixi run -e $ENV_NAME build
 
 echo "=== Build finished! ==="
-echo "To start working, run:"
-echo "    pixi shell -e $PLATFORM"
-echo "Then launch SLAM with:"
-echo "    ros2 launch mapping nav2.slam.launch.py"
+echo "To activate this environment, run:"
+echo "    pixi shell -e $ENV_NAME"
+echo ""
+if [[ "$ENV_TYPE" == "robot" ]]; then
+  echo "Then launch SLAM with:"
+  echo "    ros2 launch mapping nav2.slam.launch.py"
+else
+  echo "Development environment ready with RViz, Gazebo, etc."
+fi
