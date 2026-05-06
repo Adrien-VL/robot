@@ -18,7 +18,7 @@
     wheel_base_m: 0.237
 
     deadband: 0.18
-    max_speed_cmd: 0.25
+    max_speed_cmd: 0.10
     cmd_timeout_s: 0.5
     odom_rate_hz: 50.0
 

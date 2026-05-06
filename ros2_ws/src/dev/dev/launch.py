@@ -171,5 +171,9 @@ def make_diff_node():
     output="screen",
     parameters=[
       config("diff.yaml"),
+    ],
+    remappings=[
+      ("cmd_vel", "cmd_vel"),   # make sure it matches Nav2
+      ("odom", "/odom"),
     ]
   )
