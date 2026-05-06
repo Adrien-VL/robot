@@ -163,7 +163,7 @@
       radius="${caster_wheel_size_xyz}"
     >
       <xacro:inertial_origin />
-    </xacro:inertial_sphere>\
+    </xacro:inertial_sphere>
   </link>
 
   <!-- ========= Joint ========= -->
