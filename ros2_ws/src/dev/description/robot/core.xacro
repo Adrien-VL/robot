@@ -168,7 +168,7 @@
 
   <!-- ========= Joint ========= -->
   <joint name="caster_wheel_joint" type="fixed">
-    <parent link="chassis" />
+    <parent link="base_link" />
     <child link="caster_wheel" />
     <origin xyz="${base_to_caster_wheel_joint_x} ${base_to_caster_wheel_joint_y} ${base_to_caster_wheel_joint_z}" />
   </joint>
