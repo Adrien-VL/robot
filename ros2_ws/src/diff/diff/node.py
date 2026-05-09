@@ -1,16 +1,20 @@
 #!/usr/bin/env python3
+# /// script
+# dependencies = ["pigpio", "rclpy"]
+# ///
+
 import math
-import sys
 import time
-import pigpio
 import rclpy
 from rclpy.node import Node
+from rclpy.qos import QoSProfile, ReliabilityPolicy, HistoryPolicy
+from nav_msgs.msg import Odometry as OdometryMsg
 from geometry_msgs.msg import Twist, TransformStamped
-from nav_msgs.msg import Odometry as OdometryMsg      # ← Renamed import for clarity
 from tf2_ros import TransformBroadcaster
+import pigpio
 
 
-# ========================== CONFIG DEFAULTS ==========================
+# ========================== CONFIG (tunable via ROS parameters) ==========================
 DEFAULT_PIN_LEFT_FWD = 24
 DEFAULT_PIN_LEFT_REV = 25
 DEFAULT_PIN_LEFT_PWM = 23
@@ -19,16 +23,20 @@ DEFAULT_PIN_RIGHT_REV = 27
 DEFAULT_PIN_RIGHT_PWM = 13
 DEFAULT_PIN_LEFT_ENC = 17
 DEFAULT_PIN_RIGHT_ENC = 26
+
 DEFAULT_PWM_FREQ_HZ = 200
 DEFAULT_PWM_RANGE = 100
 DEFAULT_ENC_DEBOUNCE_US = 200
+
 DEFAULT_DEADBAND = 0.18
-DEFAULT_MAX_SPEED = 0.10
+DEFAULT_MAX_WHEEL_SPEED_MPS = 0.288  # from your benchmark (avg steady-state)
+DEFAULT_CMD_TIMEOUT_SEC = 0.5
+
 DEFAULT_TICKS_PER_REV = 525 * 2
 DEFAULT_WHEEL_RADIUS_M = 0.070
 DEFAULT_WHEEL_BASE_M = 0.237
-DEFAULT_CMD_TIMEOUT_S = 0.5
-DEFAULT_ODOM_RATE_HZ = 50.0
+
+DIST_PER_TICK = 2 * math.pi * DEFAULT_WHEEL_RADIUS_M / DEFAULT_TICKS_PER_REV
 
 
 # ========================== HELPERS ==========================
@@ -48,7 +56,7 @@ def apply_deadband(cmd, deadband):
 
 # ========================== ENCODER ==========================
 class Encoder:
-    def __init__(self, pi, pin, debounce_us):
+    def __init__(self, pi, pin):
         self.pi = pi
         self.pin = pin
         self.tick_count = 0
@@ -56,9 +64,10 @@ class Encoder:
         self.last_tick = 0
         self.last_time = time.monotonic()
         self.ticks_per_sec = 0.0
+
         pi.set_mode(pin, pigpio.INPUT)
         pi.set_pull_up_down(pin, pigpio.PUD_UP)
-        pi.set_noise_filter(pin, debounce_us, 0)
+        pi.set_noise_filter(pin, DEFAULT_ENC_DEBOUNCE_US, 0)
         self.callback = pi.callback(pin, pigpio.EITHER_EDGE, self._on_tick)
 
     def _on_tick(self, gpio, level, timestamp):
@@ -80,8 +89,8 @@ class Encoder:
             self.last_tick = self.tick_count
             self.last_time = now
 
-    def get_rpm(self, ticks_per_rev):
-        return self.ticks_per_sec * 60.0 / float(ticks_per_rev)
+    def get_rpm(self):
+        return self.ticks_per_sec * 60 / DEFAULT_TICKS_PER_REV
 
     def close(self):
         if self.callback:
@@ -90,19 +99,18 @@ class Encoder:
 
 # ========================== MOTOR ==========================
 class Motor:
-    def __init__(self, pi, pin_fwd, pin_rev, pin_pwm, encoder,
-                 pwm_freq_hz, pwm_range):
+    def __init__(self, pi, pin_fwd, pin_rev, pin_pwm, encoder):
         self.pi = pi
         self.pin_fwd = pin_fwd
         self.pin_rev = pin_rev
         self.pin_pwm = pin_pwm
         self.encoder = encoder
         self.command = 0.0
-        self.pwm_range = pwm_range
+
         for p in (pin_fwd, pin_rev, pin_pwm):
             pi.set_mode(p, pigpio.OUTPUT)
-        pi.set_PWM_frequency(pin_pwm, pwm_freq_hz)
-        pi.set_PWM_range(pin_pwm, pwm_range)
+        pi.set_PWM_frequency(pin_pwm, DEFAULT_PWM_FREQ_HZ)
+        pi.set_PWM_range(pin_pwm, DEFAULT_PWM_RANGE)
         self.set_command(0.0)
 
     def set_command(self, cmd):
@@ -111,7 +119,7 @@ class Motor:
         self.encoder.set_direction(sign(cmd) or self.encoder.direction)
         self.pi.write(self.pin_fwd, 1 if cmd > 0 else 0)
         self.pi.write(self.pin_rev, 1 if cmd < 0 else 0)
-        duty = int(abs(cmd) * self.pwm_range)
+        duty = int(abs(cmd) * DEFAULT_PWM_RANGE)
         self.pi.set_PWM_dutycycle(self.pin_pwm, duty)
 
     def stop(self):
@@ -121,18 +129,21 @@ class Motor:
         self.command = 0.0
 
 
-# ========================== WHEEL ODOMETRY ==========================
-class WheelOdometry:
+# ========================== ODOMETRY (renamed to avoid collision with ROS msg) ==========================
+class DiffDriveOdometry:
     """
-    Differential-drive odometry using midpoint (RK2) integration.
+    Differential-drive odometry using midpoint (Runge-Kutta 2) integration.
+    Same logic as your original Odometry class.
     """
     def __init__(self, dist_per_tick: float, wheel_base_m: float, scale: float = 1.0):
         self.dist_per_tick = dist_per_tick
         self.wheel_base = wheel_base_m
         self.scale = scale
+
         self.x = 0.0
         self.y = 0.0
         self.theta = 0.0
+
         self._prev_left = 0
         self._prev_right = 0
 
@@ -146,16 +157,18 @@ class WheelOdometry:
     def update(self, left_ticks: int, right_ticks: int):
         delta_l = (left_ticks - self._prev_left) * self.dist_per_tick * self.scale
         delta_r = (right_ticks - self._prev_right) * self.dist_per_tick * self.scale
+
         self._prev_left = left_ticks
         self._prev_right = right_ticks
 
         delta_dist = (delta_l + delta_r) / 2.0
         delta_theta = (delta_r - delta_l) / self.wheel_base
-        mid_theta = self.theta + delta_theta / 2.0
 
+        mid_theta = self.theta + delta_theta / 2.0
         self.x += delta_dist * math.cos(mid_theta)
         self.y += delta_dist * math.sin(mid_theta)
         self.theta += delta_theta
+
         return self.x, self.y, self.theta
 
     @property
@@ -163,217 +176,175 @@ class WheelOdometry:
         return self.x, self.y, self.theta
 
 
-# ========================== NODE ==========================
-class DiffDriveNode(Node):
+# ========================== ROS 2 NODE ==========================
+class DiffDriveRobotNode(Node):
     def __init__(self):
-        super().__init__('diff_drive')
+        super().__init__('diff_drive_robot')
 
-        # ---------- Parameters ----------
-        self.declare_parameter('left_fwd_pin', DEFAULT_PIN_LEFT_FWD)
-        self.declare_parameter('left_rev_pin', DEFAULT_PIN_LEFT_REV)
-        self.declare_parameter('left_pwm_pin', DEFAULT_PIN_LEFT_PWM)
-        self.declare_parameter('right_fwd_pin', DEFAULT_PIN_RIGHT_FWD)
-        self.declare_parameter('right_rev_pin', DEFAULT_PIN_RIGHT_REV)
-        self.declare_parameter('right_pwm_pin', DEFAULT_PIN_RIGHT_PWM)
-        self.declare_parameter('left_enc_pin', DEFAULT_PIN_LEFT_ENC)
-        self.declare_parameter('right_enc_pin', DEFAULT_PIN_RIGHT_ENC)
-        self.declare_parameter('pwm_freq_hz', DEFAULT_PWM_FREQ_HZ)
-        self.declare_parameter('pwm_range', DEFAULT_PWM_RANGE)
-        self.declare_parameter('enc_debounce_us', DEFAULT_ENC_DEBOUNCE_US)
-        self.declare_parameter('ticks_per_rev', DEFAULT_TICKS_PER_REV)
-        self.declare_parameter('wheel_radius_m', DEFAULT_WHEEL_RADIUS_M)
-        self.declare_parameter('wheel_base_m', DEFAULT_WHEEL_BASE_M)
+        # Parameters (override with ros2 param set if needed)
         self.declare_parameter('deadband', DEFAULT_DEADBAND)
-        self.declare_parameter('max_speed_cmd', DEFAULT_MAX_SPEED)
-        self.declare_parameter('cmd_timeout_s', DEFAULT_CMD_TIMEOUT_S)
-        self.declare_parameter('odom_rate_hz', DEFAULT_ODOM_RATE_HZ)
-        self.declare_parameter('odom_frame_id', 'odom')
-        self.declare_parameter('base_frame_id', 'base_link')
-        self.declare_parameter('cmd_vel_topic', 'cmd_vel')
-        self.declare_parameter('odom_topic', 'odom')
+        self.declare_parameter('max_wheel_speed_mps', DEFAULT_MAX_WHEEL_SPEED_MPS)
+        self.declare_parameter('cmd_timeout_sec', DEFAULT_CMD_TIMEOUT_SEC)
+        self.declare_parameter('odom_frame', 'odom')
+        self.declare_parameter('base_frame', 'base_link')
+        self.declare_parameter('publish_rate_hz', 200.0)
 
-        # ---------- Read parameters ----------
-        self.left_fwd_pin = self.get_parameter('left_fwd_pin').value
-        self.left_rev_pin = self.get_parameter('left_rev_pin').value
-        self.left_pwm_pin = self.get_parameter('left_pwm_pin').value
-        self.right_fwd_pin = self.get_parameter('right_fwd_pin').value
-        self.right_rev_pin = self.get_parameter('right_rev_pin').value
-        self.right_pwm_pin = self.get_parameter('right_pwm_pin').value
-        self.left_enc_pin = self.get_parameter('left_enc_pin').value
-        self.right_enc_pin = self.get_parameter('right_enc_pin').value
-        self.pwm_freq_hz = self.get_parameter('pwm_freq_hz').value
-        self.pwm_range = self.get_parameter('pwm_range').value
-        self.enc_debounce = self.get_parameter('enc_debounce_us').value
-        self.ticks_per_rev = float(self.get_parameter('ticks_per_rev').value)
-        self.wheel_radius = float(self.get_parameter('wheel_radius_m').value)
-        self.wheel_base = float(self.get_parameter('wheel_base_m').value)
-        self.deadband = float(self.get_parameter('deadband').value)
-        self.max_speed_cmd = float(self.get_parameter('max_speed_cmd').value)
-        self.cmd_timeout_s = float(self.get_parameter('cmd_timeout_s').value)
-        self.odom_rate_hz = float(self.get_parameter('odom_rate_hz').value)
-        self.odom_frame_id = self.get_parameter('odom_frame_id').value
-        self.base_frame_id = self.get_parameter('base_frame_id').value
-        self.cmd_vel_topic = self.get_parameter('cmd_vel_topic').value
-        self.odom_topic = self.get_parameter('odom_topic').value
+        self.deadband = self.get_parameter('deadband').value
+        self.max_wheel_speed = self.get_parameter('max_wheel_speed_mps').value
+        self.cmd_timeout = self.get_parameter('cmd_timeout_sec').value
+        self.odom_frame = self.get_parameter('odom_frame').value
+        self.base_frame = self.get_parameter('base_frame').value
+        self.publish_rate = self.get_parameter('publish_rate_hz').value
 
-        # ---------- pigpio setup ----------
+        self.get_logger().info(f"Starting diff-drive node | max_wheel_speed={self.max_wheel_speed:.3f} m/s | deadband={self.deadband:.2f}")
+
+        # Hardware
         self.pi = pigpio.pi()
         if not self.pi.connected:
-            self.get_logger().error("Failed to connect to pigpio daemon. Run 'sudo pigpiod'")
-            raise RuntimeError("pigpio connection failed")
+            self.get_logger().error("Failed to connect to pigpiod. Run: sudo pigpiod")
+            raise RuntimeError("pigpiod not running")
 
-        self.pi.set_PWM_range(self.left_pwm_pin, self.pwm_range)
-        self.pi.set_PWM_range(self.right_pwm_pin, self.pwm_range)
+        self.left_enc = Encoder(self.pi, DEFAULT_PIN_LEFT_ENC)
+        self.right_enc = Encoder(self.pi, DEFAULT_PIN_RIGHT_ENC)
 
-        # ---------- Encoders & motors ----------
-        self.left_enc = Encoder(self.pi, self.left_enc_pin, self.enc_debounce)
-        self.right_enc = Encoder(self.pi, self.right_enc_pin, self.enc_debounce)
+        self.left_motor = Motor(self.pi, DEFAULT_PIN_LEFT_FWD, DEFAULT_PIN_LEFT_REV,
+                                DEFAULT_PIN_LEFT_PWM, self.left_enc)
+        self.right_motor = Motor(self.pi, DEFAULT_PIN_RIGHT_FWD, DEFAULT_PIN_RIGHT_REV,
+                                 DEFAULT_PIN_RIGHT_PWM, self.right_enc)
 
-        self.left_motor = Motor(self.pi, self.left_fwd_pin, self.left_rev_pin,
-                                self.left_pwm_pin, self.left_enc,
-                                self.pwm_freq_hz, self.pwm_range)
-        self.right_motor = Motor(self.pi, self.right_fwd_pin, self.right_rev_pin,
-                                 self.right_pwm_pin, self.right_enc,
-                                 self.pwm_freq_hz, self.pwm_range)
-
-        # ---------- Odometry ----------
-        dist_per_tick = 2.0 * math.pi * self.wheel_radius / self.ticks_per_rev
-        self.odom = WheelOdometry(dist_per_tick=dist_per_tick,
-                                  wheel_base_m=self.wheel_base,
-                                  scale=1.0)
-        self.odom.seed_ticks(self.left_enc.read(), self.right_enc.read())
-
-        # ---------- ROS interfaces ----------
-        self.cmd_sub = self.create_subscription(
-            Twist, self.cmd_vel_topic, self.cmd_vel_callback, 10
+        self.odometry = DiffDriveOdometry(
+            dist_per_tick=DIST_PER_TICK,
+            wheel_base_m=DEFAULT_WHEEL_BASE_M,
+            scale=1.0
         )
-        self.odom_pub = self.create_publisher(
-            OdometryMsg, self.odom_topic, 10          # ← Use the imported message
-        )
+        self.odometry.seed_ticks(self.left_enc.read(), self.right_enc.read())
+
+        # ROS 2 interfaces
+        qos = QoSProfile(depth=10, reliability=ReliabilityPolicy.BEST_EFFORT,
+                         history=HistoryPolicy.KEEP_LAST)
+
+        self.odom_pub = self.create_publisher(OdometryMsg, 'odom', qos)
         self.tf_broadcaster = TransformBroadcaster(self)
 
-        self.last_cmd_time = self.get_clock().now()
-        self.current_cmd = Twist()
-        self.odom_timer = self.create_timer(1.0 / self.odom_rate_hz, self.update_loop)
+        self.cmd_vel_sub = self.create_subscription(
+            Twist, 'cmd_vel', self._cmd_vel_callback, 10)
 
-        self.get_logger().info("DiffDrive node started.")
+        self.timer = self.create_timer(1.0 / self.publish_rate, self._timer_callback)
 
-    def cmd_vel_callback(self, msg: Twist):
-        self.current_cmd = msg
-        self.last_cmd_time = self.get_clock().now()
+        self._last_cmd_time = self.get_clock().now()
+        self._last_cmd = Twist()
 
-    def update_loop(self):
+        self.get_logger().info("Diff-drive node ready for Nav2!")
+
+    def _cmd_vel_callback(self, msg: Twist):
+        self._last_cmd = msg
+        self._last_cmd_time = self.get_clock().now()
+
+    def _timer_callback(self):
         now = self.get_clock().now()
-        dt = (now - self.last_cmd_time).nanoseconds * 1e-9
 
-        if dt > self.cmd_timeout_s:
-            self.current_cmd = Twist()
+        # Safety timeout
+        if (now - self._last_cmd_time).nanoseconds * 1e-9 > self.cmd_timeout:
+            self.left_motor.stop()
+            self.right_motor.stop()
 
-        v = self.current_cmd.linear.x
-        w = self.current_cmd.angular.z
+        # Kinematics: cmd_vel → wheel velocities (m/s)
+        linear = self._last_cmd.linear.x
+        angular = self._last_cmd.angular.z
+        half_base = DEFAULT_WHEEL_BASE_M / 2.0
 
-        # --- Inverse kinematics ---
-        v_r = v + (w * self.wheel_base / 2.0)
-        v_l = v - (w * self.wheel_base / 2.0)
+        v_left = linear - angular * half_base
+        v_right = linear + angular * half_base
 
-        max_wheel = self.max_speed_cmd
+        # Scale to motor command [-1, 1]
+        cmd_left = clamp(v_left / self.max_wheel_speed, -1.0, 1.0)
+        cmd_right = clamp(v_right / self.max_wheel_speed, -1.0, 1.0)
 
-        # === SATURATION HANDLING ===
-        max_cmd = max(abs(v_r), abs(v_l), 1e-6)
-        if max_cmd > max_wheel:
-            scale = max_wheel / max_cmd
-            v_r *= scale
-            v_l *= scale
+        # Apply deadband (same logic as original script)
+        lc = apply_deadband(cmd_left, self.deadband)
+        rc = apply_deadband(cmd_right, self.deadband)
 
-        # === AGGRESSIVE TURNING BOOST ===
-        if abs(v) > 0.05:          # Only apply when driving forward/backward
-            turn_factor = 1.3     # ← Tune this! (1.3 = mild, 1.6 = very aggressive)
+        self.left_motor.set_command(lc)
+        self.right_motor.set_command(rc)
 
-            boost = w * self.wheel_base * (turn_factor - 1.0) / 2.0
-            v_r += boost
-            v_l -= boost
-
-            # Re-apply saturation after boost
-            max_cmd = max(abs(v_r), abs(v_l), 1e-6)
-            if max_cmd > max_wheel:
-                scale = max_wheel / max_cmd
-                v_r *= scale
-                v_l *= scale
-
-        # Convert to motor commands [-1.0 ... 1.0]
-        cmd_r = clamp(v_r / max_wheel, -1.0, 1.0)
-        cmd_l = clamp(v_l / max_wheel, -1.0, 1.0)
-
-        # Apply deadband
-        cmd_r = apply_deadband(cmd_r, self.deadband) if abs(cmd_r) > 1e-3 else 0.0
-        cmd_l = apply_deadband(cmd_l, self.deadband) if abs(cmd_l) > 1e-3 else 0.0
-
-        # Send to motors
-        self.left_motor.set_command(cmd_l)
-        self.right_motor.set_command(cmd_r)
-
-        # Update encoders and odometry
+        # Update encoders + odometry
         self.left_enc.update_speed()
         self.right_enc.update_speed()
+        x, y, theta = self.odometry.update(
+            self.left_enc.read(), self.right_enc.read()
+        )
 
-        x, y, theta = self.odom.update(self.left_enc.read(), self.right_enc.read())
-        self.publish_odom_and_tf(now, x, y, theta)
+        # Current measured body velocities (for Odometry twist)
+        left_v = self.left_enc.ticks_per_sec * DIST_PER_TICK
+        right_v = self.right_enc.ticks_per_sec * DIST_PER_TICK
+        measured_linear = (left_v + right_v) / 2.0
+        measured_angular = (right_v - left_v) / DEFAULT_WHEEL_BASE_M
 
-    def publish_odom_and_tf(self, stamp, x, y, theta):
-        # TF
-        t = TransformStamped()
-        t.header.stamp = stamp.to_msg()
-        t.header.frame_id = self.odom_frame_id
-        t.child_frame_id = self.base_frame_id
-        t.transform.translation.x = float(x)
-        t.transform.translation.y = float(y)
-        t.transform.translation.z = 0.0
-        qz = math.sin(theta / 2.0)
-        qw = math.cos(theta / 2.0)
-        t.transform.rotation.x = 0.0
-        t.transform.rotation.y = 0.0
-        t.transform.rotation.z = qz
-        t.transform.rotation.w = qw
-        self.tf_broadcaster.sendTransform(t)
-
-        # Odometry message
+        # Publish Odometry
         odom_msg = OdometryMsg()
-        odom_msg.header.stamp = stamp.to_msg()
-        odom_msg.header.frame_id = self.odom_frame_id
-        odom_msg.child_frame_id = self.base_frame_id
-        odom_msg.pose.pose.position.x = float(x)
-        odom_msg.pose.pose.position.y = float(y)
-        odom_msg.pose.pose.position.z = 0.0
-        odom_msg.pose.pose.orientation = t.transform.rotation
+        odom_msg.header.stamp = now.to_msg()
+        odom_msg.header.frame_id = self.odom_frame
+        odom_msg.child_frame_id = self.base_frame
 
-        odom_msg.twist.twist.linear.x = float(self.current_cmd.linear.x)
-        odom_msg.twist.twist.angular.z = float(self.current_cmd.angular.z)
+        odom_msg.pose.pose.position.x = x
+        odom_msg.pose.pose.position.y = y
+        odom_msg.pose.pose.position.z = 0.0
+
+        # quaternion (yaw only)
+        cy = math.cos(theta * 0.5)
+        sy = math.sin(theta * 0.5)
+        odom_msg.pose.pose.orientation.x = 0.0
+        odom_msg.pose.pose.orientation.y = 0.0
+        odom_msg.pose.pose.orientation.z = sy
+        odom_msg.pose.pose.orientation.w = cy
+
+        odom_msg.twist.twist.linear.x = measured_linear
+        odom_msg.twist.twist.angular.z = measured_angular
+
+        # Simple covariance (tune as needed)
+        odom_msg.pose.covariance[0] = 0.01   # x
+        odom_msg.pose.covariance[7] = 0.01   # y
+        odom_msg.pose.covariance[35] = 0.01  # yaw
+        odom_msg.twist.covariance[0] = 0.01
+        odom_msg.twist.covariance[35] = 0.01
 
         self.odom_pub.publish(odom_msg)
 
+        # Broadcast TF odom → base_link
+        t = TransformStamped()
+        t.header.stamp = now.to_msg()
+        t.header.frame_id = self.odom_frame
+        t.child_frame_id = self.base_frame
+        t.transform.translation.x = x
+        t.transform.translation.y = y
+        t.transform.translation.z = 0.0
+        t.transform.rotation.x = 0.0
+        t.transform.rotation.y = 0.0
+        t.transform.rotation.z = sy
+        t.transform.rotation.w = cy
+        self.tf_broadcaster.sendTransform(t)
+        
+        self.get_logger().info(f"Odom: x={x:.3f} y={y:.3f} θ={math.degrees(theta):+.1f}°", throttle_duration_sec=0.5)
+
     def destroy_node(self):
-        self.get_logger().info("Shutting down DiffDrive node...")
-        try:
-            self.left_motor.stop()
-            self.right_motor.stop()
-            self.left_enc.close()
-            self.right_enc.close()
-        except Exception:
-            pass
-        if hasattr(self, 'pi') and self.pi.connected:
+        self.get_logger().info("Shutting down – stopping motors")
+        self.left_motor.stop()
+        self.right_motor.stop()
+        self.left_enc.close()
+        self.right_enc.close()
+        if self.pi:
             self.pi.stop()
         super().destroy_node()
 
 
+# ========================== MAIN ==========================
 def main(args=None):
     rclpy.init(args=args)
-    node = DiffDriveNode()
+    node = DiffDriveRobotNode()
     try:
         rclpy.spin(node)
     except KeyboardInterrupt:
         pass
-    except Exception as e:
-        node.get_logger().error(f"Error: {e}")
     finally:
         node.destroy_node()
         rclpy.shutdown()
