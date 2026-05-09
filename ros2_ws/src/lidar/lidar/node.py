@@ -21,7 +21,7 @@ class LidarNode(Node):
     self.declare_parameter('port', '/dev/ttyUSB0')
     self.declare_parameter('baud', 115200)
 
-    self.declare_parameter('min_dist_mm', 100)
+    self.declare_parameter('min_dist_mm', 200)
     self.declare_parameter('max_dist_mm', 6000)
 
     self.declare_parameter('frame_id', 'laser_frame')
