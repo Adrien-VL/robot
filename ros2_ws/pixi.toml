@@ -71,7 +71,7 @@ ros-humble-gazebo-ros-pkgs = "*"
 ros-humble-rmw-cyclonedds-cpp = "*"
 ros-humble-xacro = "*"
 ros-humble-joint-state-publisher-gui = "*"
-ros-humble-rmw-cyclonedds-cpp = "*"
+ros-humble-demo-nodes-cpp = "*"
 
 [feature.robot.dependencies]
 ros-humble-ros-base = "*"
@@ -85,3 +85,4 @@ ros-humble-joint-state-publisher = "*"
 ros-humble-nav-msgs = "*"
 ros-humble-teleop-twist-keyboard = "*"
 ros-humble-rmw-cyclonedds-cpp = "*"
+ros-humble-demo-nodes-cpp = "*"
