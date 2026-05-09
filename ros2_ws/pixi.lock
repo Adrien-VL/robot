@@ -1524,6 +1524,7 @@ environments:
       - conda: https://prefix.dev/robostack-humble/linux-aarch64/ros-humble-costmap-queue-1.1.20-np2py312h61f2ce4_15.conda
       - conda: https://prefix.dev/robostack-humble/linux-aarch64/ros-humble-cv-bridge-3.2.1-np2py312h3c25c5b_15.conda
       - conda: https://prefix.dev/robostack-humble/linux-aarch64/ros-humble-cyclonedds-0.10.5-np2py312h61f2ce4_15.conda
+      - conda: https://prefix.dev/robostack-humble/linux-aarch64/ros-humble-demo-nodes-cpp-0.20.8-np2py312h61f2ce4_15.conda
       - conda: https://prefix.dev/robostack-humble/linux-aarch64/ros-humble-diagnostic-msgs-4.9.1-np2py312h61f2ce4_15.conda
       - conda: https://prefix.dev/robostack-humble/linux-aarch64/ros-humble-diagnostic-updater-4.0.6-np2py312h61f2ce4_15.conda
       - conda: https://prefix.dev/robostack-humble/linux-aarch64/ros-humble-domain-coordinator-0.10.0-np2py312h61f2ce4_15.conda
@@ -1532,6 +1533,7 @@ environments:
       - conda: https://prefix.dev/robostack-humble/linux-aarch64/ros-humble-dwb-msgs-1.1.20-np2py312h61f2ce4_15.conda
       - conda: https://prefix.dev/robostack-humble/linux-aarch64/ros-humble-dwb-plugins-1.1.20-np2py312h61f2ce4_15.conda
       - conda: https://prefix.dev/robostack-humble/linux-aarch64/ros-humble-eigen3-cmake-module-0.1.1-np2py312h61f2ce4_15.conda
+      - conda: https://prefix.dev/robostack-humble/linux-aarch64/ros-humble-example-interfaces-0.9.3-np2py312h61f2ce4_15.conda
       - conda: https://prefix.dev/robostack-humble/linux-aarch64/ros-humble-fastcdr-1.0.29-np2py312h61f2ce4_15.conda
       - conda: https://prefix.dev/robostack-humble/linux-aarch64/ros-humble-fastrtps-2.6.11-np2py312h61f2ce4_15.conda
       - conda: https://prefix.dev/robostack-humble/linux-aarch64/ros-humble-fastrtps-cmake-module-2.2.4-np2py312h61f2ce4_15.conda

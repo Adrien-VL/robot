@@ -5,7 +5,7 @@
     pwm_duty: 70
     port: /dev/ttyUSB0
     baud: 115200
-    min_dist_mm: 100
+    min_dist_mm: 200
     max_dist_mm: 6000
     frame_id: laser_frame
     scan_topic: scan
