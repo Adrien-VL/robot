@@ -44,6 +44,7 @@ def make_rsp_node():
       config("common.yaml"),
       config("rsp.yaml"),
       {"robot_description": robot_description()},
+      {"use_sim_time": use_sim_time()},
     ]
   )
 
@@ -54,7 +55,10 @@ def make_rviz_node():
     name="rviz2",
     output="screen",
     arguments=["-d", os.path.join(pkg_dir(), "rviz/robot.rviz")],
-    parameters=[config("common.yaml")],
+    parameters=[
+      config("common.yaml"),
+      {"use_sim_time": use_sim_time()},
+    ],
   )
 
 def make_jsp_gui_node():
@@ -97,6 +101,7 @@ def make_slam_toolbox(mapping=True, map_name="main"):
   parameters = [
     config("common.yaml"),
     config(config_file),
+    {"use_sim_time": use_sim_time()},
   ]
 
   if not mapping:
