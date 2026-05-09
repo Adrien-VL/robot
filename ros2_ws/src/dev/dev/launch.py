@@ -160,6 +160,9 @@ def make_lidar_node():
     output="screen",
     parameters=[ 
       config("lidar.yaml")
+    ],
+    remappings=[
+      ("/scan", "/scan_raw"),
     ]
   )
 
@@ -173,7 +176,32 @@ def make_diff_node():
       config("diff.yaml"),
     ],
     remappings=[
-      ("cmd_vel", "cmd_vel"),   # make sure it matches Nav2
-      ("odom", "/odom"),
+      ("/cmd_vel", "/cmd_vel"),
+      ("/odom", "/odom_diff"),
     ]
+  )
+
+def make_rf2o_node():
+  return Node(
+    package="rf2o_laser_odometry",
+    executable="rf2o_laser_odometry_node",
+    name="rf2o_laser_odometry",
+    output="screen",
+    parameters=[{
+        "laser_scan_topic": "/scan_raw",
+        "odom_topic": "/odom_rf2o",
+        "init_pose_from_topic": "/odom_diff",
+        "publish_tf": True,
+        "base_frame_id": "base_link",
+        "odom_frame_id": "odom",
+        "freq": 10.0,
+    }],
+  )
+
+def make_sync_relay_node():
+  return Node(
+    package="dev",
+    executable="sync_relay",
+    name="sync_relay",
+    output="screen",
   )

@@ -46,6 +46,7 @@ setup(
     },
     entry_points={
         'console_scripts': [
+            'sync_relay = dev.sync:main',
         ],
     },
 )
