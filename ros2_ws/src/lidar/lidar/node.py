@@ -23,6 +23,7 @@ class LidarNode(Node):
 
     self.declare_parameter('min_dist_mm', 200)
     self.declare_parameter('max_dist_mm', 6000)
+    self.declare_parameter('angle_offset_deg', 90)
 
     self.declare_parameter('frame_id', 'laser_frame')
     self.declare_parameter('scan_topic', 'scan')
@@ -37,6 +38,7 @@ class LidarNode(Node):
 
     self.MIN_DIST_MM  = self.get_parameter('min_dist_mm').value
     self.MAX_DIST_MM  = self.get_parameter('max_dist_mm').value
+    self.OFFSET       = self.get_parameter('angle_offset_deg').value % 360
 
     self.FRAME_ID     = self.get_parameter('frame_id').value
     self.SCAN_TOPIC   = self.get_parameter('scan_topic').value
@@ -71,7 +73,9 @@ class LidarNode(Node):
     # Timer (fast reading)
     self.timer = self.create_timer(0.005, self.update)
 
-    self.get_logger().info("LiDAR node started — waiting for data...")
+    self.get_logger().info(
+      f"LiDAR node started — offset={self.OFFSET}° (CW→CCW mirror + rotation)"
+    )
 
   def checksum_ok(self, p):
     expected = struct.unpack_from('<H', p, 20)[0]
@@ -93,8 +97,9 @@ class LidarNode(Node):
 
     points = []
     for i in range(4):
-      off = 4 + i*4
+      off = 4 + i * 4
       dist = ((p[off+1] & 0x3F) << 8) | p[off]
+      # Store raw ascending angle — mirror/offset handled at publish time
       angle = (angle_base + i) % 360
       points.append((angle, dist))
     return self.rpm, points
@@ -127,6 +132,7 @@ class LidarNode(Node):
       scan_complete = False
 
       for a, d in pts:
+        # Wrap detection: raw angles always ascend 0→359, so only need one direction
         if self.last_angle > 300 and a < 50:
           scan_complete = True
 
@@ -138,7 +144,6 @@ class LidarNode(Node):
         self.publish_scan()
         self.scan = [None] * 360
 
-    # Reduced logging - only every 1 second
     if time.monotonic() - self.last_print > 1.0:
       points_in_scan = sum(1 for x in self.scan if x is not None)
       self.get_logger().debug(
@@ -162,16 +167,21 @@ class LidarNode(Node):
     msg.scan_time = 60.0 / self.rpm if self.rpm > 10 else 0.1
     msg.time_increment = msg.scan_time / 360.0 if msg.scan_time > 0 else 0.0
 
-    ranges = []
+    # Build raw ranges (index = raw CW angle from sensor)
+    raw = []
     valid = 0
     for i in range(360):
       d = self.scan[i]
       if d is not None and self.MIN_DIST_MM <= d <= self.MAX_DIST_MM:
-        ranges.append(float(d) / 1000.0)
+        raw.append(float(d) / 1000.0)
         valid += 1
       else:
-        ranges.append(float('inf'))
-    msg.ranges = ranges
+        raw.append(float('inf'))
+
+    # Step 1: reverse to convert CW → CCW (mirrors the scan direction)
+    # Step 2: rotate by offset to align robot forward = index 0
+    mirrored = raw[::-1]
+    msg.ranges = mirrored[self.OFFSET:] + mirrored[:self.OFFSET]
 
     self.scan_pub.publish(msg)
     self.get_logger().info(f"Published scan - {valid} valid points @ {self.rpm:.1f} RPM")

@@ -167,7 +167,7 @@ def make_lidar_node():
       config("lidar.yaml")
     ],
     remappings=[
-      ("/scan", "/scan_raw"),
+      # ("/scan", "/scan_raw"),
     ]
   )
 
@@ -182,7 +182,7 @@ def make_diff_node():
     ],
     remappings=[
       ("/cmd_vel", "/cmd_vel"),
-      ("/odom", "/odom_diff"),
+      # ("/odom", "/odom_diff"),
     ]
   )
 

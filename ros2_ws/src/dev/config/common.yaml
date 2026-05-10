@@ -1,4 +1,4 @@
 # Global parameters (applied to every node that loads this file)
 /**:
   ros__parameters:
-    use_sim_time: true
+    use_sim_time: false
